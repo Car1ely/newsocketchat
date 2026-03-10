@@ -37,6 +37,10 @@ public class ChatEndpoint {
 
     @OnMessage
     public void onMessage(String messageJson, Session session) {
+        if (messageJson == null || messageJson.trim().isEmpty()) {
+            return;
+        }
+
         try {
             Message message = Message.fromJson(messageJson);
             handleMessage(message);

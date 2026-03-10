@@ -1,0 +1,65 @@
+services:
+  # TCP Chat Server (порт 8888)
+  tcp-server:
+    build: .
+    container_name: chat-tcp-server
+    command: ["java", "-cp", "/app/app.jar", "org.example.Main", "server", "8888"]
+    ports:
+      - "8888:8888"
+    networks:
+      - chat-network
+    restart: unless-stopped
+
+  # WebSocket Server (порт 8889)
+  websocket-server:
+    build: .
+    container_name: chat-websocket-server
+    command: ["java", "-cp", "/app/app.jar", "org.example.server.websocket.WebSocketServer", "8889"]
+    ports:
+      - "8889:8889"
+    networks:
+      - chat-network
+    restart: unless-stopped
+
+  # REST API Server (порт 8890)
+  rest-server:
+    build: .
+    container_name: chat-rest-server
+    command: ["java", "-cp", "/app/app.jar", "org.example.Main", "rest", "8890"]
+    ports:
+      - "8890:8890"
+    networks:
+      - chat-network
+    restart: unless-stopped
+
+  # TCP Client (интерактивный)
+  tcp-client:
+    build: .
+    container_name: chat-tcp-client
+    command: ["java", "-cp", "/app/app.jar", "org.example.Main", "client", "tcp-server", "8888"]
+    depends_on:
+      - tcp-server
+    networks:
+      - chat-network
+    stdin_open: true
+    tty: true
+    profiles:
+      - client
+
+  # WebSocket Client (интерактивный)
+  ws-client:
+    build: .
+    container_name: chat-ws-client
+    command: ["java", "-cp", "/app/app.jar", "org.example.client.websocket.WebSocketClient", "websocket-server", "8889"]
+    depends_on:
+      - websocket-server
+    networks:
+      - chat-network
+    stdin_open: true
+    tty: true
+    profiles:
+      - client
+
+networks:
+  chat-network:
+    driver: bridge

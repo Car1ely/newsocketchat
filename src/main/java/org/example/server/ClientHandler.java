@@ -35,6 +35,10 @@ public class ClientHandler implements Runnable {
 
             String line;
             while (running && (line = in.readLine()) != null) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+
                 try {
                     Message message = Message.parse(line);
                     handleMessage(message);

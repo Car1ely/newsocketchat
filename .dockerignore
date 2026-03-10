@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+
+# Build artifacts
+target/
+*.class
+
+# Maven
+.mvn
+mvnw
+mvnw.cmd
+
+# Documentation
+forme/
+README.md
+
+# Scripts (не нужны в контейнере)
+scripts/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
