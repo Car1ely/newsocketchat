@@ -33,9 +33,13 @@ mvn clean package -DskipTests
 ./scripts/start-ws-server.sh   # WebSocket сервер
 ./scripts/start-rest-server.sh # REST API сервер
 
-# 3. Подключение клиентов
-./scripts/start-client.sh      # TCP клиент
-./scripts/start-ws-client.sh   # WebSocket клиент
+# 3. Подключение клиентов (выберите один)
+
+# TCP клиент
+./scripts/start-client.sh localhost 8888
+
+# WebSocket клиент
+./scripts/start-ws-client.sh localhost 8889
 ```
 
 ## Использование
@@ -52,23 +56,41 @@ Enter your nickname: Alice
 
 ### REST API
 
+**⚠️ ВАЖНО: Скопируйте ВЕСЬ блок ниже целиком!**
+
 ```bash
-# 1. Присоединиться к комнате
-RESPONSE=$(curl -s -X POST http://localhost:8890/api/join \
-  -H "Content-Type: application/json" \
-  -d '{"nickname":"charlie","room":"general"}')
-
-# 2. Извлечь sessionId
-SESSION_ID=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['sessionId'])")
+NICKNAME="User_$$_$RANDOM"
+RESPONSE=$(curl -s -X POST http://localhost:8890/api/join -H "Content-Type: application/json" -d "{\"nickname\":\"$NICKNAME\",\"room\":\"general\"}")
+echo "Response: $RESPONSE"
+SESSION_ID=$(echo "$RESPONSE" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
 echo "Session ID: $SESSION_ID"
+if [ -z "$SESSION_ID" ]; then echo "❌ ERROR: Session ID is empty! Check if server is running."; exit 1; fi
+cat > /tmp/msg.json << EOF
+{"sessionId":"$SESSION_ID","text":"Hello from REST!"}
+EOF
+echo "✅ Sending message..."
+curl -s -X POST http://localhost:8890/api/send -H "Content-Type: application/json" -d @/tmp/msg.json
+echo ""
+echo "✅ Polling messages (wait up to 30 sec)..."
+curl -s "http://localhost:8890/api/messages?sessionId=$SESSION_ID"
+```
 
-# 3. Отправить сообщение
-curl -X POST http://localhost:8890/api/send \
-  -H "Content-Type: application/json" \
-  -d "{\"sessionId\":\"$SESSION_ID\",\"text\":\"Hello from REST!\"}"
+**Или пошагово (если нужно делать руками):**
 
-# 4. Получить сообщения (long polling, 30 сек)
-curl "http://localhost:8890/api/messages?sessionId=$SESSION_ID"
+1. **Join и получить sessionId:**
+```bash
+curl -s -X POST http://localhost:8890/api/join -H "Content-Type: application/json" -d '{"nickname":"Alice","room":"general"}'
+```
+Скопируйте `sessionId` из ответа (UUID формат).
+
+2. **Отправить сообщение:**
+```bash
+curl -s -X POST http://localhost:8890/api/send -H "Content-Type: application/json" -d '{"sessionId":"ВСТАВЬТЕ_sessionId","text":"Hello!"}'
+```
+
+3. **Получить сообщения (long polling 30 сек):**
+```bash
+curl -s "http://localhost:8890/api/messages?sessionId=ВСТАВЬТЕ_sessionId"
 ```
 
 ### WebSocket HTML Тестер
@@ -154,20 +176,16 @@ open websocket-test.html
 ## Остановка серверов
 
 ```bash
-# Остановить все процессы
 pkill -f "org.example"
 
-# Или через Docker
 docker-compose down
 ```
 
 **Порт занят:**
 ```bash
-# Проверить порты
 lsof -i :8888
 lsof -i :8889
 lsof -i :8890
 
-# Остановить процессы
 pkill -f ChatServer
 ```
