@@ -56,6 +56,12 @@ public class ServerListener implements Runnable {
             case JOIN_ACK:
                 handleJoinAck(message);
                 break;
+            case ROOM_LIST:
+                displayRoomList(message);
+                break;
+            case USER_LIST:
+                displayUserList(message);
+                break;
             case ERROR:
                 handleError(message);
                 break;
@@ -89,6 +95,39 @@ public class ServerListener implements Runnable {
         } else {
             System.err.println("Failed to join room: " + roomName);
         }
+    }
+
+    private void displayRoomList(Message message) {
+        System.out.println("\n=== Active Rooms ===");
+
+        String[] params = message.getParams();
+        if (params.length == 0) {
+            System.out.println("  No active rooms");
+        } else {
+            for (String roomData : params) {
+                String[] parts = roomData.split(":");
+                String roomName = parts[0];
+                String userCount = parts.length > 1 ? parts[1] : "0";
+                System.out.println("  " + roomName + " (" + userCount + " users)");
+            }
+        }
+
+        System.out.println("====================\n");
+    }
+
+    private void displayUserList(Message message) {
+        System.out.println("\n=== Active Users ===");
+
+        String[] params = message.getParams();
+        if (params.length == 0) {
+            System.out.println("  No active users");
+        } else {
+            for (String user : params) {
+                System.out.println("  - " + user);
+            }
+        }
+
+        System.out.println("====================\n");
     }
 
     private void handleError(Message message) {

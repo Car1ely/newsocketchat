@@ -4,12 +4,31 @@ import org.example.protocol.Message;
 import org.example.server.model.Room;
 import org.example.server.model.User;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RoomManager {
     private final ConcurrentHashMap<String, Room> rooms;
     private final ConcurrentHashMap<String, User> activeUsers;
+
+    public static class RoomInfo {
+        private final String name;
+        private final int userCount;
+
+        public RoomInfo(String name, int userCount) {
+            this.name = name;
+            this.userCount = userCount;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getUserCount() {
+            return userCount;
+        }
+    }
 
     public RoomManager() {
         this.rooms = new ConcurrentHashMap<>();
@@ -82,6 +101,18 @@ public class RoomManager {
                 user.sendMessage(message);
             }
         }
+    }
+
+    public List<RoomInfo> getAllRooms() {
+        List<RoomInfo> roomList = new ArrayList<>();
+        for (Room room : rooms.values()) {
+            roomList.add(new RoomInfo(room.getName(), room.getUserCount()));
+        }
+        return roomList;
+    }
+
+    public List<String> getAllActiveUsers() {
+        return new ArrayList<>(activeUsers.keySet());
     }
 
 }

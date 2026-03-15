@@ -9,6 +9,7 @@ import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 
 import java.net.InetAddress;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -80,6 +81,12 @@ public class ChatEndpoint {
             case DISCONNECT:
                 disconnect();
                 break;
+            case LIST_ROOMS:
+                handleListRooms();
+                break;
+            case LIST_USERS:
+                handleListUsers();
+                break;
             default:
                 sendError("Unsupported message type: " + type);
         }
@@ -149,6 +156,28 @@ public class ChatEndpoint {
         Message broadcast = Message.createBroadcast(user.getNickname(), text);
         System.out.println("[" + user.getCurrentRoom() + "] " + user.getNickname() + ": " + text);
         roomManager.broadcastToRoom(user.getCurrentRoom(), broadcast.toJson(), null);
+    }
+
+    private void handleListRooms() {
+        if (user == null) {
+            sendError("Not connected. Send CONNECT first.");
+            return;
+        }
+
+        List<RoomManager.RoomInfo> rooms = roomManager.getAllRooms();
+        Message response = Message.createRoomList(rooms);
+        sendJson(response);
+    }
+
+    private void handleListUsers() {
+        if (user == null) {
+            sendError("Not connected. Send CONNECT first.");
+            return;
+        }
+
+        List<String> users = roomManager.getAllActiveUsers();
+        Message response = Message.createUserList(users);
+        sendJson(response);
     }
 
     private void sendJson(Message message) {

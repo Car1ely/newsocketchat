@@ -44,3 +44,5 @@ docker-volumes/
 
 ### Project specific ###
 forme/
+.server-pids
+*.log

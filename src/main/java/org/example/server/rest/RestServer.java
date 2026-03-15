@@ -13,6 +13,7 @@ import org.example.server.rest.dto.*;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class RestServer {
     private final int port;
@@ -50,11 +51,15 @@ public class RestServer {
         System.out.println("  POST " + Protocol.REST_BASE_PATH + "/join");
         System.out.println("  POST " + Protocol.REST_BASE_PATH + "/send");
         System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/messages");
+        System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/rooms");
+        System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/users");
         System.out.println("Press Ctrl+C to stop...");
 
         app.post(Protocol.REST_BASE_PATH + "/join", this::handleJoin);
         app.post(Protocol.REST_BASE_PATH + "/send", this::handleSend);
         app.get(Protocol.REST_BASE_PATH + "/messages", this::handleMessages);
+        app.get(Protocol.REST_BASE_PATH + "/rooms", this::handleRooms);
+        app.get(Protocol.REST_BASE_PATH + "/users", this::handleUsers);
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
@@ -162,6 +167,36 @@ public class RestServer {
         } catch (Exception e) {
             ctx.json(new MessagesResponse(false, new ArrayList<>()));
         }
+    }
+
+    private void handleRooms(Context ctx) {
+        String sessionId = ctx.queryParam("sessionId");
+
+        User user = sessionManager.getUser(sessionId);
+        if (user == null) {
+            ctx.status(401).result("Invalid session");
+            return;
+        }
+
+        List<RoomManager.RoomInfo> roomInfos = roomManager.getAllRooms();
+        List<org.example.server.rest.dto.RoomInfo> dtoRooms = roomInfos.stream()
+                .map(r -> new org.example.server.rest.dto.RoomInfo(r.getName(), r.getUserCount()))
+                .collect(Collectors.toList());
+
+        ctx.json(new RoomsResponse(true, dtoRooms));
+    }
+
+    private void handleUsers(Context ctx) {
+        String sessionId = ctx.queryParam("sessionId");
+
+        User user = sessionManager.getUser(sessionId);
+        if (user == null) {
+            ctx.status(401).result("Invalid session");
+            return;
+        }
+
+        List<String> users = roomManager.getAllActiveUsers();
+        ctx.json(new UsersResponse(true, users));
     }
 
     public void shutdown() {

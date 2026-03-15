@@ -10,5 +10,9 @@ public enum MessageType {
     USER_JOINED,
     USER_LEFT,
     DISCONNECT,
-    ERROR
+    ERROR,
+    LIST_ROOMS,
+    ROOM_LIST,
+    LIST_USERS,
+    USER_LIST
 }

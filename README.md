@@ -9,88 +9,129 @@
 
 ## Быстрый старт
 
-### С Docker (рекомендуется)
+> **Требования:** Java 21, Maven 3 (или Docker + Docker Compose)
+
+### 1 — Сборка проекта
 
 ```bash
-# Запустить все серверы
-docker-compose up
-
-# TCP клиент
-docker-compose run tcp-client
-
-# WebSocket клиент
-docker-compose run ws-client
+mvn clean package -DskipTests
 ```
 
-### Без Docker
+### 2 — Запуск сервера
 
 ```bash
-# 1. Сборка
-mvn clean package -DskipTests
+./server.sh
+```
 
-# 2. Запуск серверов (в разных терминалах)
-./scripts/start-server.sh      # TCP сервер
-./scripts/start-ws-server.sh   # WebSocket сервер
-./scripts/start-rest-server.sh # REST API сервер
+Выберите вариант:
+- `1` - TCP сервер (порт 8888)
+- `2` - WebSocket сервер (порт 8889)
+- `3` - REST API сервер (порт 8890)
+- `4` - Все серверы в Docker
+- `5` - Все серверы локально (в фоне)
 
-# 3. Подключение клиентов (выберите один)
+### 3 — Подключение клиента
 
-# TCP клиент
-./scripts/start-client.sh localhost 8888
+Откройте новый терминал и запустите:
 
-# WebSocket клиент
-./scripts/start-ws-client.sh localhost 8889
+```bash
+./client.sh
+```
+
+Выберите протокол:
+- `1` - TCP клиент
+- `2` - WebSocket клиент
+- `3` - REST API клиент (интерактивный)
+
+Откройте дополнительные терминалы и снова запустите `./client.sh` для подключения нескольких пользователей.
+
+### Остановка серверов
+
+```bash
+# Если запущены локально в фоне (опция 5)
+pkill -f "org.example"
+
+# Если запущены в Docker (опция 4)
+docker-compose down
 ```
 
 ## Использование
 
-### TCP/WebSocket клиенты
+### Команды в чате
+
+| Команда | Описание |
+|---------|----------|
+| `/join <room>` | Войти в комнату |
+| `/rooms` | Показать все активные комнаты |
+| `/users` | Показать всех активных пользователей |
+| `/help` | Показать справку по командам |
+| `/quit` | Выйти из чата |
+
+### Пример сессии
 
 ```bash
+$ ./client.sh
+Select protocol:
+  1 - TCP (port 8888)
+  2 - WebSocket (port 8889)
+  3 - REST API (port 8890)
+
+Enter choice [1-3]: 1
+
+Connected to server at localhost:8888
 Enter your nickname: Alice
-> /join general          # Войти в комнату
-> Hello everyone!        # Отправить сообщение
-> /join random          # Переключить комнату
-> /quit                 # Выйти
+Welcome Alice!
+Type /join <room> to join a room
+
+> /join general
+Joined room: general
+
+> Hello everyone!
+
+> /rooms
+=== Active Rooms ===
+  general (3 users)
+  random (1 user)
+  lobby (5 users)
+====================
+
+> /users
+=== Active Users ===
+  - Alice
+  - Bob
+  - Charlie
+  - David
+====================
+
+> /quit
+Disconnecting...
 ```
 
 ### REST API
 
-**⚠️ ВАЖНО: Скопируйте ВЕСЬ блок ниже целиком!**
+Используйте `./client.sh` и выберите опцию 3 для интерактивного REST клиента.
+
+Или напрямую через curl:
 
 ```bash
-NICKNAME="User_$$_$RANDOM"
-RESPONSE=$(curl -s -X POST http://localhost:8890/api/join -H "Content-Type: application/json" -d "{\"nickname\":\"$NICKNAME\",\"room\":\"general\"}")
-echo "Response: $RESPONSE"
-SESSION_ID=$(echo "$RESPONSE" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
-echo "Session ID: $SESSION_ID"
-if [ -z "$SESSION_ID" ]; then echo "❌ ERROR: Session ID is empty! Check if server is running."; exit 1; fi
-cat > /tmp/msg.json << EOF
-{"sessionId":"$SESSION_ID","text":"Hello from REST!"}
-EOF
-echo "✅ Sending message..."
-curl -s -X POST http://localhost:8890/api/send -H "Content-Type: application/json" -d @/tmp/msg.json
-echo ""
-echo "✅ Polling messages (wait up to 30 sec)..."
-curl -s "http://localhost:8890/api/messages?sessionId=$SESSION_ID"
-```
+# Join
+curl -X POST http://localhost:8890/api/join \
+  -H "Content-Type: application/json" \
+  -d '{"nickname":"Alice","room":"general"}'
 
-**Или пошагово (если нужно делать руками):**
+# Send message
+curl -X POST http://localhost:8890/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"SESSION_ID","text":"Hello"}'
 
-1. **Join и получить sessionId:**
-```bash
-curl -s -X POST http://localhost:8890/api/join -H "Content-Type: application/json" -d '{"nickname":"Alice","room":"general"}'
-```
-Скопируйте `sessionId` из ответа (UUID формат).
+# Get messages (long polling, 30 sec)
+curl "http://localhost:8890/api/messages?sessionId=SESSION_ID"
 
-2. **Отправить сообщение:**
-```bash
-curl -s -X POST http://localhost:8890/api/send -H "Content-Type: application/json" -d '{"sessionId":"ВСТАВЬТЕ_sessionId","text":"Hello!"}'
-```
+# Get rooms
+curl "http://localhost:8890/api/rooms?sessionId=SESSION_ID"
 
-3. **Получить сообщения (long polling 30 сек):**
-```bash
-curl -s "http://localhost:8890/api/messages?sessionId=ВСТАВЬТЕ_sessionId"
+# Get users
+curl "http://localhost:8890/api/users?sessionId=SESSION_ID"
 ```
 
 ### WebSocket HTML Тестер
@@ -104,11 +145,11 @@ open websocket-test.html
 Или перетащите файл `websocket-test.html` в браузер.
 
 **Возможности:**
-- ✅ Подключение к WebSocket серверу
-- ✅ Визуальный интерфейс
-- ✅ Отправка и получение сообщений в реальном времени
-- ✅ Управление комнатами
-- ✅ История сообщений
+- Подключение к WebSocket серверу
+- Визуальный интерфейс
+- Отправка и получение сообщений в реальном времени
+- Управление комнатами
+- История сообщений
 
 ## Архитектура
 
@@ -154,13 +195,33 @@ untitled/
 └── DOCKER.md              # Docker документация
 ```
 
-## Скрипты
+## Альтернативные способы запуска
 
-- `scripts/start-server.sh` - запуск TCP сервера
-- `scripts/start-ws-server.sh` - запуск WebSocket сервера
-- `scripts/start-rest-server.sh` - запуск REST API сервера
-- `scripts/start-client.sh` - запуск TCP клиента
-- `scripts/start-ws-client.sh` - запуск WebSocket клиента
+### Использование отдельных скриптов
+
+Если вы предпочитаете запускать серверы и клиенты напрямую:
+
+```bash
+# Запуск серверов (в отдельных терминалах)
+./scripts/start-server.sh       # TCP сервер
+./scripts/start-ws-server.sh    # WebSocket сервер
+./scripts/start-rest-server.sh  # REST API сервер
+
+# Запуск клиентов
+./scripts/start-client.sh localhost 8888      # TCP клиент
+./scripts/start-ws-client.sh localhost 8889   # WebSocket клиент
+```
+
+### С Docker Compose
+
+```bash
+# Запустить все серверы
+docker-compose up
+
+# Подключиться через клиенты (в отдельных терминалах)
+docker-compose run tcp-client
+docker-compose run ws-client
+```
 
 ## Тестирование
 

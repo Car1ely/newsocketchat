@@ -86,6 +86,14 @@ public class WebSocketClient {
                 }
                 break;
 
+            case ROOM_LIST:
+                displayRoomList(message);
+                break;
+
+            case USER_LIST:
+                displayUserList(message);
+                break;
+
             case ERROR:
                 String error = message.getParam(0);
                 System.err.println("Error: " + error);
@@ -156,6 +164,14 @@ public class WebSocketClient {
                 }
                 break;
 
+            case "/rooms":
+                sendMessage(Message.createListRooms());
+                break;
+
+            case "/users":
+                sendMessage(Message.createListUsers());
+                break;
+
             case "/quit":
             case "/exit":
                 sendMessage(Message.createDisconnect());
@@ -179,9 +195,44 @@ public class WebSocketClient {
         }
     }
 
+    private void displayRoomList(Message message) {
+        System.out.println("\n=== Active Rooms ===");
+
+        String[] params = message.getParams();
+        if (params.length == 0) {
+            System.out.println("  No active rooms");
+        } else {
+            for (String roomData : params) {
+                String[] parts = roomData.split(":");
+                String roomName = parts[0];
+                String userCount = parts.length > 1 ? parts[1] : "0";
+                System.out.println("  " + roomName + " (" + userCount + " users)");
+            }
+        }
+
+        System.out.println("====================\n");
+    }
+
+    private void displayUserList(Message message) {
+        System.out.println("\n=== Active Users ===");
+
+        String[] params = message.getParams();
+        if (params.length == 0) {
+            System.out.println("  No active users");
+        } else {
+            for (String user : params) {
+                System.out.println("  - " + user);
+            }
+        }
+
+        System.out.println("====================\n");
+    }
+
     private void showHelp() {
         System.out.println("\nAvailable commands:");
         System.out.println("  /join <room>  - Join a chat room");
+        System.out.println("  /rooms        - Show all active rooms");
+        System.out.println("  /users        - Show all active users");
         System.out.println("  /quit         - Disconnect and exit");
         System.out.println("  /help         - Show this help message");
         System.out.println("\nType any text to send a message to the current room\n");

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.List;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -69,6 +70,12 @@ public class ClientHandler implements Runnable {
                 break;
             case DISCONNECT:
                 running = false;
+                break;
+            case LIST_ROOMS:
+                handleListRooms();
+                break;
+            case LIST_USERS:
+                handleListUsers();
                 break;
             default:
                 sendError("Unsupported message type: " + type);
@@ -143,6 +150,28 @@ public class ClientHandler implements Runnable {
 
         Message broadcast = Message.createBroadcast(user.getNickname(), text);
         roomManager.broadcastToRoom(user.getCurrentRoom(), broadcast.serialize(), null);
+    }
+
+    private void handleListRooms() {
+        if (user == null) {
+            sendError("Not connected. Send CONNECT first.");
+            return;
+        }
+
+        List<RoomManager.RoomInfo> rooms = roomManager.getAllRooms();
+        Message response = Message.createRoomList(rooms);
+        out.println(response.serialize());
+    }
+
+    private void handleListUsers() {
+        if (user == null) {
+            sendError("Not connected. Send CONNECT first.");
+            return;
+        }
+
+        List<String> users = roomManager.getAllActiveUsers();
+        Message response = Message.createUserList(users);
+        out.println(response.serialize());
     }
 
     private void sendError(String errorMessage) {

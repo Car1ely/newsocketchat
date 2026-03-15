@@ -26,6 +26,10 @@ public class Message {
         return null;
     }
 
+    public String[] getParams() {
+        return params;
+    }
+
     public static Message parse(String raw) {
         if (raw == null || raw.trim().isEmpty()) {
             throw new IllegalArgumentException("Message cannot be null or empty");
@@ -137,5 +141,26 @@ public class Message {
 
     public static Message createError(String errorMessage) {
         return new Message(MessageType.ERROR, errorMessage);
+    }
+
+    public static Message createListRooms() {
+        return new Message(MessageType.LIST_ROOMS);
+    }
+
+    public static Message createRoomList(java.util.List<org.example.server.RoomManager.RoomInfo> rooms) {
+        String[] params = new String[rooms.size()];
+        for (int i = 0; i < rooms.size(); i++) {
+            org.example.server.RoomManager.RoomInfo room = rooms.get(i);
+            params[i] = room.getName() + ":" + room.getUserCount();
+        }
+        return new Message(MessageType.ROOM_LIST, params);
+    }
+
+    public static Message createListUsers() {
+        return new Message(MessageType.LIST_USERS);
+    }
+
+    public static Message createUserList(java.util.List<String> users) {
+        return new Message(MessageType.USER_LIST, users.toArray(new String[0]));
     }
 }
