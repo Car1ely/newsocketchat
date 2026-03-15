@@ -6,13 +6,17 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Room {
+    private static final int MAX_HISTORY_SIZE = 20;
+
     private final String name;
     private final CopyOnWriteArrayList<User> users;
+    private final CopyOnWriteArrayList<ChatMessage> messageHistory;
     private final LocalDateTime createdAt;
 
     public Room(String name) {
         this.name = name;
         this.users = new CopyOnWriteArrayList<>();
+        this.messageHistory = new CopyOnWriteArrayList<>();
         this.createdAt = LocalDateTime.now();
     }
 
@@ -36,6 +40,25 @@ public class Room {
 
     public String getName() {
         return name;
+    }
+
+    public synchronized void addMessage(ChatMessage message) {
+        messageHistory.add(message);
+
+        while (messageHistory.size() > MAX_HISTORY_SIZE) {
+            messageHistory.remove(0);
+        }
+    }
+
+    public List<ChatMessage> getHistory(int limit) {
+        List<ChatMessage> history = new ArrayList<>(messageHistory);
+        int size = history.size();
+
+        if (size <= limit) {
+            return history;
+        }
+
+        return history.subList(size - limit, size);
     }
 
     @Override

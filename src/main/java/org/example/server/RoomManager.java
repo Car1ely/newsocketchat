@@ -1,6 +1,8 @@
 package org.example.server;
 
 import org.example.protocol.Message;
+import org.example.protocol.MessageType;
+import org.example.server.model.ChatMessage;
 import org.example.server.model.Room;
 import org.example.server.model.User;
 
@@ -61,8 +63,7 @@ public class RoomManager {
         room.addUser(user);
         user.setCurrentRoom(roomName);
 
-        Message joinMsg = Message.createUserJoined(user.getNickname());
-        broadcastToRoom(roomName, joinMsg.serialize(), user);
+        broadcastAndSave(roomName, MessageType.USER_JOINED, user.getNickname(), "", user);
 
         return true;
     }
@@ -77,8 +78,7 @@ public class RoomManager {
         if (room != null) {
             room.removeUser(user);
 
-            Message leftMsg = Message.createUserLeft(user.getNickname());
-            broadcastToRoom(currentRoom, leftMsg.serialize(), null);
+            broadcastAndSave(currentRoom, MessageType.USER_LEFT, user.getNickname(), "", null);
 
             if (room.getUserCount() == 0) {
                 rooms.remove(currentRoom);
@@ -113,6 +113,42 @@ public class RoomManager {
 
     public List<String> getAllActiveUsers() {
         return new ArrayList<>(activeUsers.keySet());
+    }
+
+    public void broadcastAndSave(String roomName, MessageType type, String sender, String text, User excludeUser) {
+        Room room = rooms.get(roomName);
+        if (room == null) {
+            return;
+        }
+
+        ChatMessage chatMessage = new ChatMessage(type, sender, text);
+        room.addMessage(chatMessage);
+
+        String serialized;
+        if (type == MessageType.BROADCAST) {
+            serialized = Message.createBroadcast(sender, text).serialize();
+        } else if (type == MessageType.USER_JOINED) {
+            serialized = Message.createUserJoined(sender).serialize();
+        } else if (type == MessageType.USER_LEFT) {
+            serialized = Message.createUserLeft(sender).serialize();
+        } else {
+            return;
+        }
+
+        List<User> users = room.getUsers();
+        for (User user : users) {
+            if (excludeUser == null || !user.equals(excludeUser)) {
+                user.sendMessage(serialized);
+            }
+        }
+    }
+
+    public List<ChatMessage> getRoomHistory(String roomName, int limit) {
+        Room room = rooms.get(roomName);
+        if (room == null) {
+            return new ArrayList<>();
+        }
+        return room.getHistory(limit);
     }
 
 }

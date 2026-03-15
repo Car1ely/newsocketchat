@@ -163,4 +163,16 @@ public class Message {
     public static Message createUserList(java.util.List<String> users) {
         return new Message(MessageType.USER_LIST, users.toArray(new String[0]));
     }
+
+    public static Message createListHistory() {
+        return new Message(MessageType.LIST_HISTORY);
+    }
+
+    public static Message createHistoryList(java.util.List<org.example.server.model.ChatMessage> history) {
+        String[] params = new String[history.size()];
+        for (int i = 0; i < history.size(); i++) {
+            params[i] = history.get(i).format();
+        }
+        return new Message(MessageType.HISTORY_LIST, params);
+    }
 }

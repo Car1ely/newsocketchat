@@ -62,6 +62,9 @@ public class ServerListener implements Runnable {
             case USER_LIST:
                 displayUserList(message);
                 break;
+            case HISTORY_LIST:
+                displayHistory(message);
+                break;
             case ERROR:
                 handleError(message);
                 break;
@@ -128,6 +131,21 @@ public class ServerListener implements Runnable {
         }
 
         System.out.println("====================\n");
+    }
+
+    private void displayHistory(Message message) {
+        System.out.println("\n=== Message History ===");
+
+        String[] params = message.getParams();
+        if (params.length == 0) {
+            System.out.println("  No messages yet");
+        } else {
+            for (String formattedMsg : params) {
+                System.out.println(formattedMsg);
+            }
+        }
+
+        System.out.println("=======================\n");
     }
 
     private void handleError(Message message) {

@@ -38,29 +38,35 @@ public class ChatClient {
         Message connectMsg = Message.createConnect(nickname);
         out.println(connectMsg.serialize());
 
+        String response;
         try {
-            String response = in.readLine();
-            if (response != null) {
-                Message ack = Message.parse(response);
-                if (ack.getType() == org.example.protocol.MessageType.CONNECT_ACK) {
-                    boolean success = Boolean.parseBoolean(ack.getParam(0));
-                    String message = ack.getParam(1);
-
-                    if (success) {
-                        System.out.println(message);
-                        System.out.println("Type /join <room> to join a room");
-                        System.out.println("Type /quit to exit");
-                    } else {
-                        System.err.println("Connection failed: " + message);
-                        running = false;
-                        return;
-                    }
-                }
-            }
-        } catch (IOException | IllegalArgumentException e) {
-            System.err.println("Error during initialization: " + e.getMessage());
+            response = in.readLine();
+        } catch (IOException e) {
+            System.err.println("Failed to read server response: " + e.getMessage());
             running = false;
             return;
+        }
+
+        if (response == null) {
+            System.err.println("Server closed connection");
+            running = false;
+            return;
+        }
+
+        Message ack = Message.parse(response);
+        if (ack.getType() == org.example.protocol.MessageType.CONNECT_ACK) {
+            boolean success = Boolean.parseBoolean(ack.getParam(0));
+            String message = ack.getParam(1);
+
+            if (success) {
+                System.out.println(message);
+                System.out.println("Type /join <room> to join a room");
+                System.out.println("Type /quit to exit");
+            } else {
+                System.err.println("Connection failed: " + message);
+                running = false;
+                return;
+            }
         }
 
         Thread listenerThread = new Thread(new ServerListener(in, this));
@@ -81,16 +87,26 @@ public class ChatClient {
         System.out.println("Disconnecting...");
         running = false;
 
-        try {
-            if (out != null) {
-                Message disconnectMsg = Message.createDisconnect();
-                out.println(disconnectMsg.serialize());
-                out.close();
+        if (out != null) {
+            Message disconnectMsg = Message.createDisconnect();
+            out.println(disconnectMsg.serialize());
+            out.close();
+        }
+
+        if (in != null) {
+            try {
+                in.close();
+            } catch (IOException e) {
+                System.err.println("Error closing input stream: " + e.getMessage());
             }
-            if (in != null) in.close();
-            if (socket != null && !socket.isClosed()) socket.close();
-        } catch (IOException e) {
-            System.err.println("Error closing connection: " + e.getMessage());
+        }
+
+        if (socket != null && !socket.isClosed()) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                System.err.println("Error closing socket: " + e.getMessage());
+            }
         }
 
         System.out.println("Disconnected from server");

@@ -2,6 +2,7 @@ package org.example.server;
 
 import org.example.protocol.Message;
 import org.example.protocol.MessageType;
+import org.example.server.model.ChatMessage;
 import org.example.server.model.User;
 import org.example.server.tcp.TcpMessageSender;
 
@@ -77,6 +78,9 @@ public class ClientHandler implements Runnable {
             case LIST_USERS:
                 handleListUsers();
                 break;
+            case LIST_HISTORY:
+                handleListHistory();
+                break;
             default:
                 sendError("Unsupported message type: " + type);
         }
@@ -148,8 +152,8 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        Message broadcast = Message.createBroadcast(user.getNickname(), text);
-        roomManager.broadcastToRoom(user.getCurrentRoom(), broadcast.serialize(), null);
+        roomManager.broadcastAndSave(user.getCurrentRoom(), MessageType.BROADCAST,
+                user.getNickname(), text, null);
     }
 
     private void handleListRooms() {
@@ -171,6 +175,22 @@ public class ClientHandler implements Runnable {
 
         List<String> users = roomManager.getAllActiveUsers();
         Message response = Message.createUserList(users);
+        out.println(response.serialize());
+    }
+
+    private void handleListHistory() {
+        if (user == null) {
+            sendError("Not connected. Send CONNECT first.");
+            return;
+        }
+
+        if (user.getCurrentRoom() == null) {
+            sendError("Not in a room. Join a room first.");
+            return;
+        }
+
+        List<ChatMessage> history = roomManager.getRoomHistory(user.getCurrentRoom(), 20);
+        Message response = Message.createHistoryList(history);
         out.println(response.serialize());
     }
 

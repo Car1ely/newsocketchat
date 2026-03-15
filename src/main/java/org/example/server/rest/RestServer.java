@@ -5,8 +5,10 @@ import com.google.gson.JsonObject;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import org.example.protocol.Message;
+import org.example.protocol.MessageType;
 import org.example.protocol.Protocol;
 import org.example.server.RoomManager;
+import org.example.server.model.ChatMessage;
 import org.example.server.model.User;
 import org.example.server.rest.dto.*;
 
@@ -53,6 +55,7 @@ public class RestServer {
         System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/messages");
         System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/rooms");
         System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/users");
+        System.out.println("  GET  " + Protocol.REST_BASE_PATH + "/history");
         System.out.println("Press Ctrl+C to stop...");
 
         app.post(Protocol.REST_BASE_PATH + "/join", this::handleJoin);
@@ -60,113 +63,109 @@ public class RestServer {
         app.get(Protocol.REST_BASE_PATH + "/messages", this::handleMessages);
         app.get(Protocol.REST_BASE_PATH + "/rooms", this::handleRooms);
         app.get(Protocol.REST_BASE_PATH + "/users", this::handleUsers);
+        app.get(Protocol.REST_BASE_PATH + "/history", this::handleHistory);
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     private void handleJoin(Context ctx) {
-        try {
-            JoinRequest request = ctx.bodyAsClass(JoinRequest.class);
+        JoinRequest request = ctx.bodyAsClass(JoinRequest.class);
 
-            if (request.getNickname() == null || request.getNickname().trim().isEmpty()) {
-                ctx.json(new JoinResponse(false, null, "Nickname cannot be empty"));
-                return;
-            }
-            if (request.getRoom() == null || request.getRoom().trim().isEmpty()) {
-                ctx.json(new JoinResponse(false, null, "Room name cannot be empty"));
-                return;
-            }
-
-            RestMessageSender messageSender = new RestMessageSender();
-            InetAddress address = InetAddress.getByName(ctx.ip());
-            User user = new User(request.getNickname(), messageSender, address);
-
-            if (!roomManager.registerUser(user)) {
-                ctx.json(new JoinResponse(false, null, "Nickname already in use"));
-                return;
-            }
-
-            if (!roomManager.addUserToRoom(user, request.getRoom())) {
-                roomManager.unregisterUser(user);
-                ctx.json(new JoinResponse(false, null, "Failed to join room"));
-                return;
-            }
-
-            String sessionId = sessionManager.createSession(user);
-
-            ctx.json(new JoinResponse(true, sessionId, "Joined room: " + request.getRoom()));
-
-        } catch (Exception e) {
-            ctx.json(new JoinResponse(false, null, "Error: " + e.getMessage()));
+        if (request.getNickname() == null || request.getNickname().trim().isEmpty()) {
+            ctx.json(new JoinResponse(false, null, "Nickname cannot be empty"));
+            return;
         }
+        if (request.getRoom() == null || request.getRoom().trim().isEmpty()) {
+            ctx.json(new JoinResponse(false, null, "Room name cannot be empty"));
+            return;
+        }
+
+        InetAddress address;
+        try {
+            address = InetAddress.getByName(ctx.ip());
+        } catch (Exception e) {
+            address = null;
+        }
+
+        RestMessageSender messageSender = new RestMessageSender();
+        User user = new User(request.getNickname(), messageSender, address);
+
+        if (!roomManager.registerUser(user)) {
+            ctx.json(new JoinResponse(false, null, "Nickname already in use"));
+            return;
+        }
+
+        if (!roomManager.addUserToRoom(user, request.getRoom())) {
+            roomManager.unregisterUser(user);
+            ctx.json(new JoinResponse(false, null, "Failed to join room"));
+            return;
+        }
+
+        String sessionId = sessionManager.createSession(user);
+
+        ctx.json(new JoinResponse(true, sessionId, "Joined room: " + request.getRoom()));
     }
 
     private void handleSend(Context ctx) {
-        try {
-            SendRequest request = ctx.bodyAsClass(SendRequest.class);
+        SendRequest request = ctx.bodyAsClass(SendRequest.class);
 
-            User user = sessionManager.getUser(request.getSessionId());
-            if (user == null) {
-                ctx.json(new SendResponse(false, "Invalid or expired session"));
-                return;
-            }
-
-            if (user.getCurrentRoom() == null) {
-                ctx.json(new SendResponse(false, "Not in any room"));
-                return;
-            }
-
-            if (request.getText() == null || request.getText().trim().isEmpty()) {
-                ctx.json(new SendResponse(false, "Message cannot be empty"));
-                return;
-            }
-
-            Message broadcast = Message.createBroadcast(user.getNickname(), request.getText());
-            roomManager.broadcastToRoom(user.getCurrentRoom(), broadcast.toJson(), user);
-
-            ctx.json(new SendResponse(true, "Message sent"));
-
-        } catch (Exception e) {
-            ctx.json(new SendResponse(false, "Error: " + e.getMessage()));
+        User user = sessionManager.getUser(request.getSessionId());
+        if (user == null) {
+            ctx.json(new SendResponse(false, "Invalid or expired session"));
+            return;
         }
+
+        if (user.getCurrentRoom() == null) {
+            ctx.json(new SendResponse(false, "Not in any room"));
+            return;
+        }
+
+        if (request.getText() == null || request.getText().trim().isEmpty()) {
+            ctx.json(new SendResponse(false, "Message cannot be empty"));
+            return;
+        }
+
+        roomManager.broadcastAndSave(user.getCurrentRoom(), MessageType.BROADCAST,
+                user.getNickname(), request.getText(), user);
+
+        ctx.json(new SendResponse(true, "Message sent"));
     }
 
     private void handleMessages(Context ctx) {
+        String sessionId = ctx.queryParam("sessionId");
+
+        User user = sessionManager.getUser(sessionId);
+        if (user == null) {
+            ctx.json(new MessagesResponse(false, new ArrayList<>()));
+            return;
+        }
+
+        if (!(user.getMessageSender() instanceof RestMessageSender)) {
+            ctx.json(new MessagesResponse(false, new ArrayList<>()));
+            return;
+        }
+
+        RestMessageSender restSender = (RestMessageSender) user.getMessageSender();
+
+        List<String> rawMessages;
         try {
-            String sessionId = ctx.queryParam("sessionId");
-
-            User user = sessionManager.getUser(sessionId);
-            if (user == null) {
-                ctx.json(new MessagesResponse(false, new ArrayList<>()));
-                return;
-            }
-
-            if (!(user.getMessageSender() instanceof RestMessageSender)) {
-                ctx.json(new MessagesResponse(false, new ArrayList<>()));
-                return;
-            }
-
-            RestMessageSender restSender = (RestMessageSender) user.getMessageSender();
-
-            List<String> rawMessages = restSender.pollMessages(Protocol.REST_LONG_POLL_TIMEOUT_MS);
-
-            List<JsonObject> messages = new ArrayList<>();
-            for (String raw : rawMessages) {
-                try {
-                    JsonObject msgObj = gson.fromJson(raw, JsonObject.class);
-                    messages.add(msgObj);
-                } catch (Exception e) {
-                    System.err.println("Error parsing message JSON: " + e.getMessage());
-                }
-            }
-
-            ctx.json(new MessagesResponse(true, messages));
-
+            rawMessages = restSender.pollMessages(Protocol.REST_LONG_POLL_TIMEOUT_MS);
         } catch (InterruptedException e) {
             ctx.json(new MessagesResponse(false, new ArrayList<>()));
-        } catch (Exception e) {
-            ctx.json(new MessagesResponse(false, new ArrayList<>()));
+            return;
         }
+
+        List<JsonObject> messages = new ArrayList<>();
+        for (String raw : rawMessages) {
+            try {
+                JsonObject msgObj = gson.fromJson(raw, JsonObject.class);
+                messages.add(msgObj);
+            } catch (Exception e) {
+                System.err.println("Error parsing message JSON: " + e.getMessage());
+            }
+        }
+
+        ctx.json(new MessagesResponse(true, messages));
     }
 
     private void handleRooms(Context ctx) {
@@ -197,6 +196,28 @@ public class RestServer {
 
         List<String> users = roomManager.getAllActiveUsers();
         ctx.json(new UsersResponse(true, users));
+    }
+
+    private void handleHistory(Context ctx) {
+        String sessionId = ctx.queryParam("sessionId");
+
+        User user = sessionManager.getUser(sessionId);
+        if (user == null) {
+            ctx.status(401).result("Invalid session");
+            return;
+        }
+
+        if (user.getCurrentRoom() == null) {
+            ctx.json(new HistoryResponse(false, new ArrayList<>(), "Not in any room"));
+            return;
+        }
+
+        List<ChatMessage> history = roomManager.getRoomHistory(user.getCurrentRoom(), 20);
+        List<String> formattedHistory = history.stream()
+                .map(ChatMessage::format)
+                .collect(Collectors.toList());
+
+        ctx.json(new HistoryResponse(true, formattedHistory, null));
     }
 
     public void shutdown() {

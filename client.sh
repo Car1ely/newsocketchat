@@ -87,9 +87,10 @@ except:
         POLL_PID=$!
 
         echo -e "${BLUE}Available commands:${NC}"
-        echo "  /rooms - Show all active rooms"
-        echo "  /users - Show all active users"
-        echo "  /quit  - Disconnect and exit"
+        echo "  /rooms   - Show all active rooms"
+        echo "  /users   - Show all active users"
+        echo "  /history - Show last 20 messages"
+        echo "  /quit    - Disconnect and exit"
         echo ""
         echo "Type your message and press Enter to send:"
         echo ""
@@ -125,6 +126,19 @@ data = json.load(sys.stdin)
 if data.get('success'):
     for user in data.get('users', []):
         print(f\"  - {user}\")
+" 2>/dev/null
+                echo ""
+            elif [ "$INPUT" = "/history" ]; then
+                echo -e "\n${BLUE}Message History:${NC}"
+                curl -s "http://$HOST:$PORT/api/history?sessionId=$SESSION_ID" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+if data.get('success'):
+    if data.get('history'):
+        for msg in data.get('history', []):
+            print(msg)
+    else:
+        print('  No messages yet')
 " 2>/dev/null
                 echo ""
             else

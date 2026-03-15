@@ -66,6 +66,9 @@ public class InputHandler implements Runnable {
             case "/users":
                 sendListUsers();
                 break;
+            case "/history":
+                sendListHistory();
+                break;
             case "/help":
                 showHelp();
                 break;
@@ -95,11 +98,17 @@ public class InputHandler implements Runnable {
         out.println(msg.serialize());
     }
 
+    private void sendListHistory() {
+        Message msg = Message.createListHistory();
+        out.println(msg.serialize());
+    }
+
     private void showHelp() {
         System.out.println("\nAvailable commands:");
         System.out.println("  /join <room>  - Join a chat room");
         System.out.println("  /rooms        - Show all active rooms");
         System.out.println("  /users        - Show all active users");
+        System.out.println("  /history      - Show last 20 messages");
         System.out.println("  /quit         - Disconnect and exit");
         System.out.println("  /help         - Show this help message");
         System.out.println("\nType any text to send a message to the current room\n");

@@ -64,6 +64,7 @@ docker-compose down
 | `/join <room>` | Войти в комнату |
 | `/rooms` | Показать все активные комнаты |
 | `/users` | Показать всех активных пользователей |
+| `/history` | Показать последние 20 сообщений комнаты |
 | `/help` | Показать справку по командам |
 | `/quit` | Выйти из чата |
 
@@ -132,6 +133,9 @@ curl "http://localhost:8890/api/rooms?sessionId=SESSION_ID"
 
 # Get users
 curl "http://localhost:8890/api/users?sessionId=SESSION_ID"
+
+# Get history
+curl "http://localhost:8890/api/history?sessionId=SESSION_ID"
 ```
 
 ### WebSocket HTML Тестер

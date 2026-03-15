@@ -14,5 +14,7 @@ public enum MessageType {
     LIST_ROOMS,
     ROOM_LIST,
     LIST_USERS,
-    USER_LIST
+    USER_LIST,
+    LIST_HISTORY,
+    HISTORY_LIST
 }

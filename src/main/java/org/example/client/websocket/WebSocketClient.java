@@ -94,6 +94,10 @@ public class WebSocketClient {
                 displayUserList(message);
                 break;
 
+            case HISTORY_LIST:
+                displayHistory(message);
+                break;
+
             case ERROR:
                 String error = message.getParam(0);
                 System.err.println("Error: " + error);
@@ -172,6 +176,10 @@ public class WebSocketClient {
                 sendMessage(Message.createListUsers());
                 break;
 
+            case "/history":
+                sendMessage(Message.createListHistory());
+                break;
+
             case "/quit":
             case "/exit":
                 sendMessage(Message.createDisconnect());
@@ -228,11 +236,27 @@ public class WebSocketClient {
         System.out.println("====================\n");
     }
 
+    private void displayHistory(Message message) {
+        System.out.println("\n=== Message History ===");
+
+        String[] params = message.getParams();
+        if (params.length == 0) {
+            System.out.println("  No messages yet");
+        } else {
+            for (String formattedMsg : params) {
+                System.out.println(formattedMsg);
+            }
+        }
+
+        System.out.println("=======================\n");
+    }
+
     private void showHelp() {
         System.out.println("\nAvailable commands:");
         System.out.println("  /join <room>  - Join a chat room");
         System.out.println("  /rooms        - Show all active rooms");
         System.out.println("  /users        - Show all active users");
+        System.out.println("  /history      - Show last 20 messages");
         System.out.println("  /quit         - Disconnect and exit");
         System.out.println("  /help         - Show this help message");
         System.out.println("\nType any text to send a message to the current room\n");
